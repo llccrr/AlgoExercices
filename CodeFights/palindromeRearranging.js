@@ -1,4 +1,4 @@
-function palindromeRearranging(a) {
+palindromeRearranging = (a) => {
     let map = {};
     let sum = 0;
 
