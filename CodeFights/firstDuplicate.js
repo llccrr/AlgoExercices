@@ -1,10 +1,9 @@
-function firstDuplicate(a) {
-    var b = a;
-    var obj = {};
+firstDuplicate = (a) => {
+    let b = a;
+    let obj = {};
 
-    for(var i=0; i<a.length; i++){
-
-        if (obj[a[i]] == 1) {
+    for(let i=0; i < a.length; i++){
+        if (obj[a[i]] === 1) {
             return a[i];
         }
         obj[a[i]] = 1;
