@@ -1,10 +1,10 @@
-function firstNotRepeatingCharacter(s) {
-    var obj={};
+firstNotRepeatingCharacter = (s) => {
+    let obj = {};
     // - reverse every bit and add 1, ~reverse everybyte so we just added 1.
-    for(char of s) {
+    for(let char of s) {
         obj[char] = -~obj[char];
     }
-    for (key in obj) {
+    for (let key in obj) {
         if(obj[key] == 1)
             return key
     }
