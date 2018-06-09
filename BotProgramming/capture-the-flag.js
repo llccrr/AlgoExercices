@@ -1,4 +1,3 @@
-/* ---- FORMAT INIT FUNCTIONS ---- */
 const formatUFO = (inputs, lastMove = '') => ({
     x: parseInt(inputs[0]),
     y: parseInt(inputs[1]),
@@ -22,13 +21,9 @@ const buildUFO = (alastMoves) => {
     return ufos;
 }
 
-/* ---- ACTION FUNCTIONS ---- */
 const goTo = (x,y, speed) => `${x} ${y} ${speed}`;
 
-const bump = (enemyToBump, speed) =>
-goTo(enemyToBump.x + 400, enemyToBump.y, speed);
-
-
+const bump = (enemyToBump, speed) => goTo(enemyToBump.x + enemyToBump.vx +, enemyToBump.vy + enemyToBump.vy, speed)
 
 const distance = (a, b) => {
 	const xs = a.x - b.x;
@@ -72,7 +67,7 @@ while (true) {
     const enemyFlag = formatFlag(inputs)
     const myUFOs = buildUFO([...lastMoves]);
     const enemyUFOs = buildUFO(['rien', 'rien']);
-
+    
     // Set base pos once per game
     if (i === 1) {
         myBase = myFlag.x;
@@ -97,8 +92,8 @@ while (true) {
         const between = betweenFlagAndUfo(closestToMyFlag, myFlag, 600);
         const distMeClosest = distance(myUFOs[0], closestToMyFlag);
         const distMeBetween = distance(myUFOs[0], between);
-
-        myUFOs[0].nextMove = goTo(~~between.x, ~~between.y, '100')
+        const baseSpeed = distMeBetween > 1000 ? '100' : ~~(distMeBetween/10).toString()
+        myUFOs[0].nextMove = goTo(~~between.x, ~~between.y, baseSpeed)
         if (distMeBetween < 400) {
             myUFOs[0].nextMove = goTo(prevMoves[0].x, prevMoves[0].y, '98')
         }
