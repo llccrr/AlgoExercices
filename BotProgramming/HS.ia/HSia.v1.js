@@ -1,53 +1,4 @@
-//// CLASSES ///////////////////////////////////////////////////////////////////////////////////////////////////////
-class Card {
-  constructor(cardInfo) {
-    Object.assign(this, cardInfo);
-  }
-
-  isCreature() {
-    return this.cardType === "creature";
-  }
-
-  isGreenItem() {
-    return this.cardType === "green item";
-  }
-
-  isRedItem() {
-    return this.cardType === "red item";
-  }
-
-  isBlueItem() {
-    return this.cardType === "blue item";
-  }
-
-  isDefender() {
-    return this.guard && !this.breakthrough && !this.drain;
-  }
-}
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 ////////// DECKS ///////////////////////////////////////////////////////////////////////////////////////////////////////
-const emptyDeck = {
-  0: 0,
-  1: 0,
-  2: 0,
-  3: 0,
-  4: 0,
-  5: 0,
-  6: 0,
-  7: 0,
-  8: 1,
-  9: 0,
-  10: 0,
-  11: 0,
-  12: 0,
-  "green item": 0,
-  "red item": 0,
-  "blue item": 0,
-  value: () => {
-    0;
-  }
-};
 const zooDeck = {
   0: 0,
   1: 4,
@@ -76,12 +27,8 @@ const zooDeck = {
     };
     const cost = 1.5;
 
-    let value =
-      (card.attack * attack + card.defense * defense) / card.cost * cost;
-    value *= Object.keys(abilities).reduce(
-      (total, ability) => total * (card[ability] ? abilities[ability] : 1),
-      1
-    );
+    let value = ((card.attack * attack + card.defense * defense) / card.cost) * cost;
+    value *= Object.keys(abilities).reduce((total, ability) => total * (card[ability] ? abilities[ability] : 1), 1);
     value *= card.attack !== 0;
     return value;
   }
@@ -98,11 +45,35 @@ const greenDeck = {
   "green item": 5,
   "red item": 0,
   "blue item": 0,
-  value: () => {
-    0;
-  }
+  value: () => 0
 };
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+///// CONSTANTS ///////////////////////////////////////////////////////////////////////////////////////////////////
+const cardTypesEnum = ["creature", "green item", "red item", "blue item"];
+const [creatureDeck, itemDeck] = [zooDeck, greenDeck];
+const abilitiesWeights = [1, 1, 2, 3, 3, 1]; //B C D G L W
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//// CLASSES ///////////////////////////////////////////////////////////////////////////////////////////////////////
+class Card {
+  constructor(cardInfo) {
+    Object.assign(this, cardInfo);
+    this.value = this.deck().value(this);
+  }
+  deck() {
+    return this.cardType === "creature" ? creatureDeck : itemDeck;
+  }
+}
+class Board extends Array {
+  constructor(...args) {
+    super(...args);
+  }
+  hasNoGuard() {
+    return !this.some(card => card.defense > 0 && card.guard);
+  }
+}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
  * TODO
@@ -126,9 +97,6 @@ let opponentCard = new Card({
   abilities: "------"
 });
 let phase = "DRAFT";
-const cardTypesEnum = ["creature", "green item", "red item", "blue item"];
-const [creatureDeck, itemDeck] = [zooDeck, greenDeck];
-const abilitiesWeights = [1, 1, 2, 3, 3, 1]; //B C D G L W
 let turn = 1;
 
 // game loop
@@ -141,7 +109,11 @@ while (true) {
     turn++;
     print(`PICK ${card.nb}`);
   } else {
-    play(cards);
+    const myHand = cards.filter(card => card.location === 0);
+    const myBoard = new Board(...cards.filter(card => card.location === 1));
+    const opponentBoard = new Board(...cards.filter(card => card.location === -1));
+    const actions = [...summonCreatures(myHand), ...attackOpponent(myBoard, opponentBoard)];
+    print(actions.length ? actions.join(";") : "PASS");
   }
 }
 
@@ -168,7 +140,7 @@ function getAttackerOpponent(myCard, myBoard, opponentBoard) {
     if (card.lethal) {
       return chosenCard;
     }
-    if (ennemy.playerHealth <= myCard.attack * 2 && hasNoGuard(opponentBoard)) {
+    if (ennemy.playerHealth <= myCard.attack * 2 && opponentBoard.hasNoGuard()) {
       return opponentCard;
     }
     if (myCard.lethal) {
@@ -183,8 +155,7 @@ function getAttackerOpponent(myCard, myBoard, opponentBoard) {
       }
       if (
         (chosenCard.id == -1 && card.attack + card.defense > 6) ||
-        card.attack * 2 + card.defense >
-          chosenCard.attack * 2 + chosenCard.defense
+        card.attack * 2 + card.defense > chosenCard.attack * 2 + chosenCard.defense
       ) {
         return card;
       }
@@ -199,18 +170,10 @@ function getAttackerOpponent(myCard, myBoard, opponentBoard) {
         return chosenCard;
       }
     }
-    if (
-      card.guard &&
-      card.defense >= chosenCard.defense &&
-      myCard.attack >= card.defense
-    ) {
+    if (card.guard && card.defense >= chosenCard.defense && myCard.attack >= card.defense) {
       return card;
     }
-    if (
-      hasNoGuard(myBoard) &&
-      myCard.attack >= card.defense &&
-      myCard.defense > card.attack
-    ) {
+    if (myBoard.hasNoGuard() && myCard.attack >= card.defense && myCard.defense > card.attack) {
       return card;
     }
 
@@ -239,64 +202,66 @@ function updatePlayersAndCurrentPhase() {
 }
 
 function getCardsList() {
-  const pickValue = card => {
-    switch (card.cardType) {
-      case "creature":
-        return creatureDeck.value(card, turn);
-      case "green item":
-        return itemDeck.value(card, turn);
-      case "red item":
-        return itemDeck.value(card, turn);
-      case "blue item":
-        return itemDeck.value(card, turn);
-      default:
-        return -1;
-    }
-  };
-
-  var cards = [];
-  var opponentHand = parseInt(readline());
-  var cardCount = parseInt(readline());
+  const cards = [];
+  const opponentHand = parseInt(readline());
+  const cardCount = parseInt(readline());
   for (var i = 0; i < cardCount; i++) {
     var inputs = readline().split(" ");
-    var cardNumber = parseInt(inputs[0]);
-    var instanceId = parseInt(inputs[1]);
-    var location = parseInt(inputs[2]);
-    var cardType = parseInt(inputs[3]);
-    var cost = parseInt(inputs[4]);
-    var attack = parseInt(inputs[5]);
-    var defense = parseInt(inputs[6]);
-    var abilities = inputs[7];
-    var myHealthChange = parseInt(inputs[8]);
-    var opponentHealthChange = parseInt(inputs[9]);
-    var cardDraw = parseInt(inputs[10]);
 
     const cardInfo = new Card({
       nb: i,
-      cardNumber,
-      id: instanceId,
-      location,
-      cost,
-      attack,
-      defense,
-      breakthrough: abilities.includes("B"),
-      charge: abilities.includes("C"),
-      drain: abilities.includes("D"),
-      guard: abilities.includes("G"),
-      lethal: abilities.includes("L"),
-      ward: abilities.includes("W"),
-      myHealthChange,
-      opponentHealthChange,
-      cardDraw,
-      cardType: cardTypesEnum[cardType]
+      cardNumber: parseInt(inputs[0]),
+      id: parseInt(inputs[1]),
+      location: parseInt(inputs[2]),
+      cardType: cardTypesEnum[parseInt(inputs[3])],
+      cost: parseInt(inputs[4]),
+      attack: parseInt(inputs[5]),
+      defense: parseInt(inputs[6]),
+      breakthrough: inputs[7].includes("B"),
+      charge: inputs[7].includes("C"),
+      drain: inputs[7].includes("D"),
+      guard: inputs[7].includes("G"),
+      lethal: inputs[7].includes("L"),
+      ward: inputs[7].includes("W"),
+      myHealthChange: parseInt(inputs[8]),
+      opponentHealthChange: parseInt(inputs[9]),
+      cardDraw: parseInt(inputs[10])
     });
-    cardInfo.value = pickValue(cardInfo);
     cards.push(cardInfo);
   }
   return cards;
 }
 
 function draft(cards, turn) {
+  const pickBestCard = cards => cards.sort((prev, next) => next.value - prev.value)[0];
+
+  const pickCurvedCard = cards => {
+    const deck = card => card.deck();
+
+    const sortedByBest = cards.sort((prev, next) => next.value - prev.value);
+    log(sortedByBest);
+    log(sortedByBest.map(card => card.value));
+
+    let chosenCard = sortedByBest.find(card => deck(card)[card.cost] > 0 && deck(card)[card.cardType] > 0);
+    log(chosenCard);
+
+    if (!chosenCard) {
+      chosenCard = sortedByBest.find(card => deck(card)[card.cardType] > 0);
+      log("card not found, checking card type", chosenCard);
+    }
+    if (!chosenCard) {
+      chosenCard = sortedByBest.find(card => deck(card)[card.cost] > 0);
+      log("card not found, checking card cost", chosenCard);
+    }
+
+    const cardToPick = chosenCard || sortedByBest[0];
+    deck(cardToPick)[cardToPick.cost]--;
+    deck(cardToPick)[cardToPick.cardType]--;
+    log(cardToPick.value);
+    log(deck(cardToPick));
+    return cardToPick;
+  };
+
   let card;
   if (turn <= 12) {
     card = pickCurvedCard(cards);
@@ -306,67 +271,25 @@ function draft(cards, turn) {
   return card;
 }
 
-function pickBestCard(cards) {
-  const sortedByBest = cards.sort((prev, next) => next.value - prev.value);
-  return sortedByBest[0];
-}
-
-function pickCurvedCard(cards) {
-  const deck = card => (card.isCreature() ? creatureDeck : itemDeck);
-
-  const sortedByBest = cards.sort((prev, next) => next.value - prev.value);
-  log(sortedByBest);
-  log(sortedByBest.map(card => card.value));
-
-  let chosenCard = sortedByBest.find(
-    card => deck(card)[card.cost] > 0 && deck(card)[card.cardType] > 0
-  );
-  log(chosenCard);
-
-  if (!chosenCard) {
-    chosenCard = sortedByBest.find(card => deck(card)[card.cardType] > 0);
-    log("card not found, checking card type", chosenCard);
-  }
-  if (!chosenCard) {
-    chosenCard = sortedByBest.find(card => deck(card)[card.cost] > 0);
-    log("card not found, checking card cost", chosenCard);
-  }
-
-  const cardToPick = chosenCard || sortedByBest[0];
-  deck(cardToPick)[cardToPick.cost]--;
-  deck(cardToPick)[cardToPick.cardType]--;
-  log(cardToPick.value);
-  log(deck(cardToPick));
-  return cardToPick;
-}
-
-function play(cards) {
-  const myHand = cards.filter(card => card.location === 0);
-  const myBoard = cards.filter(card => card.location === 1);
-  const opponentBoard = cards.filter(card => card.location === -1);
-  const actions = [
-    ...summonCreatures(myHand, myBoard),
-    ...attackOpponent(myBoard, opponentBoard)
-  ];
-  print(actions.length ? actions.join(";") : "PASS");
-}
-
-function dfs(graph, root, cards, totalMana, paths) {
-  const newGraph = graph.filter(card => card.id !== root.id);
-  for (let i = 0; i < newGraph.length; i++) {
-    const child = newGraph[i];
-    const newCost = totalMana + child.cost;
-    if (newCost <= playerMana) {
-      dfs(newGraph, child, [...cards, child], newCost, paths);
-    } else {
+function summonCreatures(myHand) {
+  function dfs(graph, root, cards, totalMana, paths) {
+    const newGraph = graph.filter(card => card.id !== root.id);
+    if (newGraph.length === 0) {
       paths.push(cards);
     }
+    for (let i = 0; i < newGraph.length; i++) {
+      const child = newGraph[i];
+      const newCost = totalMana + child.cost;
+      if (newCost <= me.playerMana) {
+        dfs(newGraph, child, [...cards, child], newCost, paths);
+      } else {
+        paths.push(cards);
+      }
+    }
   }
-}
 
-function summonCreatures(myHand, myBoard) {
   const sortedByCost = myHand
-    .filter(card => card.isCreature() && card.cost <= me.playerMana)
+    .filter(card => card.cardType === "creature" && card.cost <= me.playerMana)
     .sort((prev, next) => prev.cost - next.cost);
 
   const paths = [];
@@ -374,64 +297,42 @@ function summonCreatures(myHand, myBoard) {
     const root = sortedByCost[i];
     dfs(sortedByCost, root, [root], root.cost, paths);
   }
+  if (paths.length === 0) return [];
 
   const result = paths.reduce((bestCombo, currentCombo) => {
     const bestCost = bestCombo.reduce((total, card) => total + card.cost, 0);
-    const currentCost = currentCombo.reduce(
-      (total, card) => total + card.cost,
-      0
-    );
-    return bestCombo.length + bestCost < currentCombo.length + currentCost
-      ? currentCombo
-      : bestCombo;
+    const currentCost = currentCombo.reduce((total, card) => total + card.cost, 0);
+    return bestCombo.length + bestCost < currentCombo.length + currentCost ? currentCombo : bestCombo;
   });
-  log("Best Summoning combo" + result);
-  return result;
-
-  // const summonedCards = sortedByCost.reduce((prevCombo, card1) => {
-  //     const currentCombo = sortedByCost.reduce((tmp, card2) => {
-  //         if (card1.id !== card2.id && tmp.mana + card2.cost <= me.playerMana) {
-  //             return { mana: card2.cost + tmp.mana, cards: [...tmp.cards, card2] };
-  //         } else {
-  //             return tmp;
-  //         }
-  //     }, { mana: card1.cost, cards: [card1] });
-
-  //     if(prevCombo.mana >= currentCombo.mana && prevCombo.cards.length >= currentCombo.cards.length) {
-  //         return prevCombo;
-  //     } else {
-  //         return currentCombo;
-  //     }
-  // }, { mana: 0, cards: [] });
-  // log('sorted hand: ', sortedByInterest, sortedByInterest.map(card => card.value));
-
-  // const summonedCards = sortedByInterest.filter(card => {
-  //     if (me.playerMana - card.cost >= 0) {
-  //         me.playerMana -= card.cost;
-  //         if (card.charge) card.location = 1;
-  //         myBoard.push(card);
-  //         return true;
-  //     } else {
-  //         return false;
-  //     }
-  // });
-  // log('summoned cards: ', summonedCards);
-
-  // return summonedCards.map(card => `SUMMON ${card.id}`);
+  log("Best Summoning combo", result);
+  return result.map(card => `SUMMON ${card.id}`);
 }
 
 function attackOpponent(myBoard, opponentBoard) {
+  function getBestOpponent(myCard, myBoard, opponentBoard) {
+    if (myCard.attack === 0) {
+      return opponentCard;
+    }
+    let attackedOpponent;
+    if (myCard.guard && !myCard.breakthrough && !myCard.drain) {
+      log("defender");
+      attackedOpponent = getDefenderOpponent(myCard, myBoard, opponentBoard);
+    } else {
+      log("attacker");
+      attackedOpponent = getAttackerOpponent(myCard, myBoard, opponentBoard);
+    }
+    log(attackedOpponent);
+    return attackedOpponent;
+  }
+
   let actions = [];
-  myBoard = myBoard.sort(
-    (prev, next) => getBoardInterest(next) - getBoardInterest(prev)
-  );
+  myBoard = myBoard.sort((prev, next) => getBoardInterest(next) - getBoardInterest(prev));
   log("sorted board : ", myBoard);
   myBoard.forEach(card => {
     if (card.location === 1) {
       let message = "";
       log("attacker: ", card);
       const opponent = getBestOpponent(card, myBoard, opponentBoard);
-      log("attacked opponent: ", opponent);
       if (opponent.ward) {
         opponent.ward = false;
       } else {
@@ -447,22 +348,6 @@ function attackOpponent(myBoard, opponentBoard) {
     }
   });
   return actions;
-}
-
-function getBestOpponent(myCard, myBoard, opponentBoard) {
-  if (myCard.attack === 0) {
-    return opponentCard;
-  }
-
-  if (myCard.isDefender()) {
-    return getDefenderOpponent(myCard, myBoard, opponentBoard);
-  } else {
-    return getAttackerOpponent(myCard, myBoard, opponentBoard);
-  }
-}
-
-function hasNoGuard(board) {
-  return !board.some(card => card.defense > 0 && card.guard);
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
