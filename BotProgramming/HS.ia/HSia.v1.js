@@ -72,6 +72,9 @@ class Board extends Array {
   hasNoGuard() {
     return !this.some(card => card.defense > 0 && card.guard);
   }
+  sortBy(carac, asc) {
+    return this.sort((prev, next) => (asc ? prev[carac] - next[carac] : next[carac] - prev[carac]));
+  }
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -85,7 +88,8 @@ class Board extends Array {
  * eviter de suicider une bete si carte qui vient dêtre summon peut la tuer au prochain tour
  * joouer drain à la place de lethal
  * curve pour les items
- * fonctions de calcul de poids à mettre dans le deck
+ * dans les combos d'attaque, prevoir le cas ou y a un conflit entre combo et le meileur supprime tout autre combo sur le 2nd guard
+ * 
  */
 const debug = true;
 let me = {};
@@ -116,71 +120,6 @@ while (true) {
     print(actions.length ? actions.join(";") : "PASS");
   }
 }
-
-//////// BRAIN FUNCTIONS ///////////////////////////////////////////////////////////////////////////////////////////
-function getBoardInterest(card) {
-  return 1;
-}
-
-function getDefenderOpponent(myCard, myBoard, opponentBoard) {
-  return opponentBoard.find(card => card.attack === 0) || opponentCard;
-}
-
-function getAttackerOpponent(myCard, myBoard, opponentBoard) {
-  return opponentBoard.reduce((chosenCard, card) => {
-    if (card.defense <= 0) {
-      return chosenCard;
-    }
-    if (card.guard && !chosenCard.guard) {
-      return card;
-    }
-    if (!card.guard && chosenCard.guard) {
-      return chosenCard;
-    }
-    if (card.lethal) {
-      return chosenCard;
-    }
-    if (ennemy.playerHealth <= myCard.attack * 2 && opponentBoard.hasNoGuard()) {
-      return opponentCard;
-    }
-    if (myCard.lethal) {
-      if (card.guard) {
-        if (chosenCard.defense > card.defense) {
-          return chosenCard;
-        } else if (chosenCard.defense === card.defense) {
-          return chosenCard.attack > card.attack ? chosenCard : card;
-        } else {
-          return card;
-        }
-      }
-      if (
-        (chosenCard.id == -1 && card.attack + card.defense > 6) ||
-        card.attack * 2 + card.defense > chosenCard.attack * 2 + chosenCard.defense
-      ) {
-        return card;
-      }
-    }
-    if (myCard.breakthrough && card.defense * 2 < myCard.attack) {
-      return card;
-    }
-    if (myCard.ward) {
-      if (chosenCard.id == -1 || chosenCard.attack < card.attack) {
-        return card;
-      } else {
-        return chosenCard;
-      }
-    }
-    if (card.guard && card.defense >= chosenCard.defense && myCard.attack >= card.defense) {
-      return card;
-    }
-    if (myBoard.hasNoGuard() && myCard.attack >= card.defense && myCard.defense > card.attack) {
-      return card;
-    }
-
-    return chosenCard;
-  }, opponentCard);
-}
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /////// GAME FUNCTIONS /////////////////////////////////////////////////////////////////////////////////////////////////
 function updatePlayersAndCurrentPhase() {
@@ -309,46 +248,44 @@ function summonCreatures(myHand) {
 }
 
 function attackOpponent(myBoard, opponentBoard) {
-  function getBestOpponent(myCard, myBoard, opponentBoard) {
-    if (myCard.attack === 0) {
-      return opponentCard;
-    }
-    let attackedOpponent;
-    if (myCard.guard && !myCard.breakthrough && !myCard.drain) {
-      log("defender");
-      attackedOpponent = getDefenderOpponent(myCard, myBoard, opponentBoard);
-    } else {
-      log("attacker");
-      attackedOpponent = getAttackerOpponent(myCard, myBoard, opponentBoard);
-    }
-    log(attackedOpponent);
-    return attackedOpponent;
+  let actions;
+  const opGuards = opponentBoard.filter(card => card.guard).sortBy("attack");
+  if (opGuards.length > 0) {
+    actions.push(...attackGuards(myBoard, opGuards));
   }
-
-  let actions = [];
-  myBoard = myBoard.sort((prev, next) => getBoardInterest(next) - getBoardInterest(prev));
-  log("sorted board : ", myBoard);
-  myBoard.forEach(card => {
-    if (card.location === 1) {
-      let message = "";
-      log("attacker: ", card);
-      const opponent = getBestOpponent(card, myBoard, opponentBoard);
-      if (opponent.ward) {
-        opponent.ward = false;
-      } else {
-        if (opponent.id === -1) {
-          ennemy.playerHealth -= card.attack;
-        } else {
-          opponent.defense -= card.attack;
-        }
-      }
-      if (card.lethal) opponent.defense = 0;
-      if (card.attack === 0) message = "*pouic*";
-      actions.push(`ATTACK ${card.id} ${opponent.id} ${message}`);
-    }
-  });
+  actions.push(...attack(myBoard, opponentBoard));
   return actions;
 }
+
+function attackGuards(myBoard, opGuards) {
+  function dfs(opGuard, graph, root, cards, totalAttack, combos) {
+    const newGraph = graph.filter(card => card.id !== root.id);
+    if (newGraph.length === 0) {
+      paths.push(cards);
+    }
+    for (let i = 0; i < newGraph.length; i++) {
+      const child = newGraph[i];
+      const comboAttack = totalAttack + child.attack;
+      if (comboAttack <= opGuard.defense) {
+        dfs(newGraph, child, [...cards, child], comboAttack, combos);
+      } else {
+        paths.push(cards);
+      }
+    }
+  }
+  const combos = [];
+  opGuards.forEach(opGuard => {
+    for(let i = 0; i < myBoard.length; i++) {
+      const root = myBoard[i];
+      dfs(opGuard, myBoard, root, [root], root.attack, combos);
+    }
+  });
+}
+
+function attack(myBoard, opponentBoard) {
+
+}
+//.map(card => `ATTACK ${card.id} ${opponent.id} ${message}`)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 ////// UTILITIES ///////////////////////////////////////////////////////////////////////////////////////////////////
