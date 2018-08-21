@@ -1,4 +1,4 @@
-console.log(' \n\n\n --- ##### DEBUT ##### --- \n\n\n ');
+console.log(" \n\n\n --- ##### DEBUT ##### --- \n\n\n ");
 const myHand = [
   {
     cost: 2,
@@ -70,12 +70,11 @@ const test = {
   leTest: this.card
 };
 
-
-// TODO : si efficient et loss equivalent, prendre la carte qui a le plus d'attaque
 function attackGuards(myBoard, opGuards) {
   function dfs(opGuard, graph, root, combo, totalAttack, combos) {
     const newGraph = graph.filter(card => card.id !== root.id);
-    if (newGraph.length === 0) { //lorsqu'on atteint le bout du graph
+    if (newGraph.length === 0) {
+      //lorsqu'on atteint le bout du graph
       combos.push({
         opGuard,
         combo,
@@ -106,34 +105,34 @@ function attackGuards(myBoard, opGuards) {
     }
   });
 
-  //console.log('combos', JSON.stringify(combos, null, 2));
-
   const chosenCombos = [];
   for (let i = 0; i < opGuards.length; i++) {
     let opGuardCombos = combos.filter(combo => !combo.opGuard.downed && !combo.combo.some(card => card.used));
 
-    let bestCombos;
+    let bestCombos, sorted;
     const freeTrades = opGuardCombos
       .filter(combo => combo.loss === 0 && combo.efficient <= 0)
       .sort((prev, next) => next.efficient - prev.efficient);
-    bestCombos = freeTrades;
+    sorted = freeTrades;
 
     if (freeTrades.length === 0) {
-      //console.log('combos', JSON.stringify(combos.filter(combo => combo.efficient <= 0), null, 2));
       const sortedByLoss = opGuardCombos
         .filter(combo => combo.efficient <= 0)
         .sort((prev, next) => prev.loss - next.loss);
-      //console.log('sortedByLoss', JSON.stringify(sortedByLoss, null, 2))
-      const bestCases = sortedByLoss
+      const sortedByEfficient = sortedByLoss
         .filter(combo => combo.loss === sortedByLoss[0].loss)
         .sort((prev, next) => next.efficient - prev.efficient);
-      bestCombos = bestCases;
+      sorted = sortedByEfficient;
     }
 
-    //console.log('bestCombos', JSON.stringify(bestCombos, null, 2));
+    bestCombos = sorted
+      .filter(combo => combo.efficient === sorted[0].efficient)
+      .sort((prev, next) => next.opGuard.attack - prev.opGuard.attack);
+    console.log(JSON.stringify(bestCombos, null, 2));
 
     bestCombos.forEach(combo => {
-      if (!combo.combo.some(card => card.used)) { //eviter de push 2 fois le même combo
+      if (!combo.combo.some(card => card.used)) {
+        //eviter de push 2 fois le même combo
         chosenCombos.push(combo);
         combo.opGuard.downed = true;
         combo.combo.forEach(card => {
@@ -142,10 +141,10 @@ function attackGuards(myBoard, opGuards) {
       }
     });
   }
-
-  console.log(JSON.stringify(chosenCombos, null, 2));
-
-  return chosenCombos;
+  return chosenCombos
+    .map(combo => combo.combo.map(card => `ATTACK ${card.id} ${combo.opGuard.id}`).join(";"))
+    .join(";");
 }
 
-attackGuards(myBoard, opGuards);
+const actions = attackGuards(myBoard, opGuards);
+console.log(actions);

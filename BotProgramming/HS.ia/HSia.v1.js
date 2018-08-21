@@ -1,29 +1,29 @@
 ////////// DECKS ///////////////////////////////////////////////////////////////////////////////////////////////////////
 const zooDeck = {
   0: 0,
-  1: 4,
-  2: 4,
-  3: 6,
+  1: 3,
+  2: 3,
+  3: 5,
   4: 6,
   5: 5,
   6: 3,
   7: 2,
-  8: 1,
-  9: 0,
+  8: 2,
+  9: 1,
   10: 1,
-  11: 0,
-  12: 0,
+  11: 1,
+  12: 1,
   creature: 30,
   value: (card, turn) => {
     const attack = 3;
     const defense = 2;
     const abilities = {
-      breakthrough: 1.8,
-      charge: 2,
-      drain: 1.4,
-      guard: 1,
-      lethal: 2,
-      ward: 1.8
+      breakthrough: 3,
+      charge: 1,
+      drain: 1,
+      guard: 4,
+      lethal: 12,
+      ward: 3
     };
     const cost = 1.5;
 
@@ -89,7 +89,7 @@ class Board extends Array {
  * joouer drain à la place de lethal
  * curve pour les items
  * dans les combos d'attaque, prevoir le cas ou y a un conflit entre combo et le meileur supprime tout autre combo sur le 2nd guard
- * 
+ *
  */
 const debug = true;
 let me = {};
@@ -116,7 +116,7 @@ while (true) {
     const myHand = cards.filter(card => card.location === 0);
     const myBoard = new Board(...cards.filter(card => card.location === 1));
     const opponentBoard = new Board(...cards.filter(card => card.location === -1));
-    const actions = [...summonCreatures(myHand), ...attackOpponent(myBoard, opponentBoard)];
+    const actions = [...summonCreatures(myHand, myBoard), ...attackOpponent(myBoard, opponentBoard)];
     print(actions.length ? actions.join(";") : "PASS");
   }
 }
@@ -210,7 +210,7 @@ function draft(cards, turn) {
   return card;
 }
 
-function summonCreatures(myHand) {
+function summonCreatures(myHand, myBoard) {
   function dfs(graph, root, cards, totalMana, paths) {
     const newGraph = graph.filter(card => card.id !== root.id);
     if (newGraph.length === 0) {
@@ -219,7 +219,7 @@ function summonCreatures(myHand) {
     for (let i = 0; i < newGraph.length; i++) {
       const child = newGraph[i];
       const newCost = totalMana + child.cost;
-      if (newCost <= me.playerMana) {
+      if (newCost <= me.playerMana && myBoard.length + cards.length <= 5) {
         dfs(newGraph, child, [...cards, child], newCost, paths);
       } else {
         paths.push(cards);
@@ -244,12 +244,22 @@ function summonCreatures(myHand) {
     return bestCombo.length + bestCost < currentCombo.length + currentCost ? currentCombo : bestCombo;
   });
   log("Best Summoning combo", result);
+  result.forEach(card => {
+    if (card.charge) {
+      card.location = 1;
+      myBoard.push(card);
+    }
+  });
   return result.map(card => `SUMMON ${card.id}`);
 }
 
 function attackOpponent(myBoard, opponentBoard) {
-  let actions;
+  if (myBoard.length === 0) return [];
+  let actions = [];
+  opponentBoard.length && actions.push(...lethalsAttack(myBoard, opponentBoard));
   const opGuards = opponentBoard.filter(card => card.guard).sortBy("attack");
+  log("opGuards", opGuards);
+  actions.push(...destroyWards(myBoard, opGuards));
   if (opGuards.length > 0) {
     actions.push(...attackGuards(myBoard, opGuards));
   }
@@ -258,32 +268,210 @@ function attackOpponent(myBoard, opponentBoard) {
 }
 
 function attackGuards(myBoard, opGuards) {
-  function dfs(opGuard, graph, root, cards, totalAttack, combos) {
+  function dfs(opGuard, graph, root, combo, totalAttack, combos) {
     const newGraph = graph.filter(card => card.id !== root.id);
     if (newGraph.length === 0) {
-      paths.push(cards);
+      //lorsqu'on atteint le bout du graph
+      combos.push({
+        opGuard,
+        combo,
+        loss: combo.reduce((total, card) => total + (card.defense - opGuard.attack <= 0 ? 1 : 0), 0),
+        efficient: combo.reduce((total, card) => total - card.attack, opGuard.defense)
+      });
     }
     for (let i = 0; i < newGraph.length; i++) {
       const child = newGraph[i];
       const comboAttack = totalAttack + child.attack;
-      if (comboAttack <= opGuard.defense) {
-        dfs(newGraph, child, [...cards, child], comboAttack, combos);
+      if (totalAttack < opGuard.defense) {
+        dfs(opGuard, newGraph, child, [...combo, child], comboAttack, combos);
       } else {
-        paths.push(cards);
+        combos.push({
+          opGuard,
+          combo,
+          loss: combo.reduce((total, card) => total + (card.defense - opGuard.attack <= 0 ? 1 : 0), 0),
+          efficient: combo.reduce((total, card) => total - card.attack, opGuard.defense)
+        });
       }
     }
   }
-  const combos = [];
+
+  function chooseBestCombo(myBoard, opGuards) {
+    const chosenCombos = [];
+    for (let i = 0; i < opGuards.length; i++) {
+      let opGuardCombos = combos.filter(combo => !combo.opGuard.downed && !combo.combo.some(card => card.used));
+
+      let bestCombos, sorted;
+      const freeTrades = opGuardCombos
+        .filter(combo => combo.loss === 0 && combo.efficient <= 0)
+        .sort((prev, next) => next.efficient - prev.efficient);
+      sorted = freeTrades;
+
+      if (freeTrades.length === 0) {
+        const killingCombos = opGuardCombos.filter(combo => combo.efficient <= 0);
+        const sortedByLoss = (killingCombos.length === 0 ? opGuardCombos : killingCombos).sort(
+          (prev, next) => prev.loss - next.loss
+        );
+        const sortedByEfficient = sortedByLoss
+          .filter(combo => combo.loss === sortedByLoss[0].loss)
+          .sort((prev, next) => next.efficient - prev.efficient);
+        sorted = sortedByEfficient;
+      }
+
+      bestCombos = sorted
+        .filter(combo => combo.efficient === sorted[0].efficient)
+        .sort((prev, next) => next.opGuard.attack - prev.opGuard.attack);
+
+      bestCombos.forEach(combo => {
+        if (!combo.combo.some(card => card.used)) {
+          //eviter de push 2 fois le même combo
+          chosenCombos.push(combo);
+          combo.opGuard.downed = true;
+          combo.combo.forEach(card => {
+            card.used = true;
+          });
+        }
+      });
+    }
+    return chosenCombos;
+  }
+
+  const actions = [],
+    combos = [];
   opGuards.forEach(opGuard => {
-    for(let i = 0; i < myBoard.length; i++) {
+    for (let i = 0; i < myBoard.length; i++) {
       const root = myBoard[i];
       dfs(opGuard, myBoard, root, [root], root.attack, combos);
     }
   });
+
+  const chosenCombos = chooseBestCombo(myBoard, opGuards);
+  actions.push(
+    ...chosenCombos.map(combo => combo.combo.map(card => `ATTACK ${card.id} ${combo.opGuard.id}`).join(";"))
+  );
+  log("guardCombos", actions);
+
+  return actions;
 }
 
 function attack(myBoard, opponentBoard) {
+  return fullFace(myBoard);
+  /*  function dfs(opGuard, graph, root, combo, totalAttack, combos) {
+    const newGraph = graph.filter(card => card.id !== root.id);
+    if (newGraph.length === 0) {
+      //lorsqu'on atteint le bout du graph
+      combos.push({
+        opGuard,
+        combo,
+        loss: combo.reduce((total, card) => total + (card.defense - opGuard.attack <= 0 ? 1 : 0), 0),
+        efficient: combo.reduce((total, card) => total - card.attack, opGuard.defense)
+      });
+    }
+    for (let i = 0; i < newGraph.length; i++) {
+      const child = newGraph[i];
+      const comboAttack = totalAttack + child.attack;
+      if (totalAttack < opGuard.defense) {
+        dfs(opGuard, newGraph, child, [...combo, child], comboAttack, combos);
+      } else {
+        combos.push({
+          opGuard,
+          combo,
+          loss: combo.reduce((total, card) => total + (card.defense - opGuard.attack <= 0 ? 1 : 0), 0),
+          efficient: combo.reduce((total, card) => total - card.attack, opGuard.defense)
+        });
+      }
+    }
+  }
 
+  function chooseBestCombo(myBoard, opGuards) {
+    const chosenCombos = [];
+    for (let i = 0; i < opGuards.length; i++) {
+      let opGuardCombos = combos.filter(combo => !combo.opGuard.downed && !combo.combo.some(card => card.used));
+
+      let bestCombos, sorted;
+      const freeTrades = opGuardCombos
+        .filter(combo => combo.loss === 0 && combo.efficient <= 0)
+        .sort((prev, next) => next.efficient - prev.efficient);
+      sorted = freeTrades;
+
+      if (freeTrades.length === 0) {
+        const killingCombos = opGuardCombos.filter(combo => combo.efficient <= 0);
+        const sortedByLoss = (killingCombos.length === 0 ? opGuardCombos : killingCombos).sort(
+          (prev, next) => prev.loss - next.loss
+        );
+        const sortedByEfficient = sortedByLoss
+          .filter(combo => combo.loss === sortedByLoss[0].loss)
+          .sort((prev, next) => next.efficient - prev.efficient);
+        sorted = sortedByEfficient;
+      }
+
+      bestCombos = sorted
+        .filter(combo => combo.efficient === sorted[0].efficient)
+        .sort((prev, next) => next.opGuard.attack - prev.opGuard.attack);
+
+      bestCombos.forEach(combo => {
+        if (!combo.combo.some(card => card.used)) {
+          //eviter de push 2 fois le même combo
+          chosenCombos.push(combo);
+          combo.opGuard.downed = true;
+          combo.combo.forEach(card => {
+            card.used = true;
+          });
+        }
+      });
+    }
+    return chosenCombos;
+  }
+
+  const actions = [],
+    combos = [];
+  opGuards.forEach(opGuard => {
+    for (let i = 0; i < myBoard.length; i++) {
+      const root = myBoard[i];
+      dfs(opGuard, myBoard, root, [root], root.attack, combos);
+    }
+  });
+
+  const chosenCombos = chooseBestCombo(myBoard, opGuards);
+  actions.push(
+    ...chosenCombos.map(combo => combo.combo.map(card => `ATTACK ${card.id} ${combo.opGuard.id}`).join(";"))
+  );
+  log("attackCombos", actions);
+
+  return actions;*/
+}
+
+function lethalsAttack(myBoard, opponentBoard) {
+  const actions = [];
+  const opGuards = opponentBoard.filter(card => card.guard);
+  myBoard.forEach(card => {
+    if (card.lethal) {
+      const opponent = (opGuards.length ? opGuards : opponentBoard).reduce(
+        (chosen, opponent) => (chosen.defense > opponent.defense ? chosen : opponent)
+      );
+      card.used = true;
+      actions.push(`ATTACK ${card.id} ${opponent.id}`);
+    }
+  });
+  return actions;
+}
+
+function destroyWards(myBoard, opponents) {
+  const actions = [];
+  opponents.forEach(opponent => {
+    if (opponent.ward) {
+      const weakest = myBoard.reduce(
+        (weakest, card) => (weakest.attack < card.attack && !weakest.used ? weakest : card)
+      );
+      weakest.used = true;
+      opponent.ward = false;
+      actions.push(`ATTACK ${weakest.id} ${opponent.id}`);
+    }
+  });
+  return actions;
+}
+
+function fullFace(myBoard) {
+  return myBoard.map(card => `ATTACK ${card.id} -1`);
 }
 //.map(card => `ATTACK ${card.id} ${opponent.id} ${message}`)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
