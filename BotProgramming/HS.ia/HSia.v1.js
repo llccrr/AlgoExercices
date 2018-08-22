@@ -9,13 +9,10 @@ const zooDeck = {
   6: 3,
   7: 2,
   8: 2,
-  9: 1,
-  10: 1,
-  11: 1,
   12: 1,
   creature: 30,
   value: (card, turn) => {
-    const attack = 3;
+    const attack = 5;
     const defense = 2;
     const abilities = {
       breakthrough: 3,
@@ -42,15 +39,15 @@ const greenDeck = {
   5: 0,
   6: 0,
   7: 0,
-  "green item": 5,
-  "red item": 0,
-  "blue item": 0,
+  'green item': 5,
+  'red item': 0,
+  'blue item': 0,
   value: () => 0
 };
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 ///// CONSTANTS ///////////////////////////////////////////////////////////////////////////////////////////////////
-const cardTypesEnum = ["creature", "green item", "red item", "blue item"];
+const cardTypesEnum = ['creature', 'green item', 'red item', 'blue item'];
 const [creatureDeck, itemDeck] = [zooDeck, greenDeck];
 const abilitiesWeights = [1, 1, 2, 3, 3, 1]; //B C D G L W
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -62,7 +59,7 @@ class Card {
     this.value = this.deck().value(this);
   }
   deck() {
-    return this.cardType === "creature" ? creatureDeck : itemDeck;
+    return this.cardType === 'creature' ? creatureDeck : itemDeck;
   }
 }
 class Board extends Array {
@@ -98,9 +95,9 @@ let opponentCard = new Card({
   id: -1,
   attack: 0,
   defense: 30,
-  abilities: "------"
+  abilities: '------'
 });
-let phase = "DRAFT";
+let phase = 'DRAFT';
 let turn = 1;
 
 // game loop
@@ -108,7 +105,7 @@ while (true) {
   updatePlayersAndCurrentPhase();
   const cards = getCardsList();
 
-  if (phase === "DRAFT") {
+  if (phase === 'DRAFT') {
     const card = draft(cards, turn);
     turn++;
     print(`PICK ${card.nb}`);
@@ -117,7 +114,7 @@ while (true) {
     const myBoard = new Board(...cards.filter(card => card.location === 1));
     const opponentBoard = new Board(...cards.filter(card => card.location === -1));
     const actions = [...summonCreatures(myHand, myBoard), ...attackOpponent(myBoard, opponentBoard)];
-    print(actions.length ? actions.join(";") : "PASS");
+    print(actions.length ? actions.join(';') : 'PASS');
   }
 }
 
@@ -125,7 +122,7 @@ while (true) {
 function updatePlayersAndCurrentPhase() {
   const getPlayerInfo = () => {
     const [playerHealth, playerMana, playerDeck, playerRune] = readline()
-      .split(" ")
+      .split(' ')
       .map(val => parseInt(val));
     return { playerHealth, playerMana, playerDeck, playerRune };
   };
@@ -134,9 +131,9 @@ function updatePlayersAndCurrentPhase() {
   ennemy = getPlayerInfo();
 
   if (me.playerMana === 0) {
-    phase = "DRAFT";
+    phase = 'DRAFT';
   } else {
-    phase = "BATTLE";
+    phase = 'BATTLE';
   }
 }
 
@@ -145,7 +142,7 @@ function getCardsList() {
   const opponentHand = parseInt(readline());
   const cardCount = parseInt(readline());
   for (var i = 0; i < cardCount; i++) {
-    var inputs = readline().split(" ");
+    var inputs = readline().split(' ');
 
     const cardInfo = new Card({
       nb: i,
@@ -156,12 +153,12 @@ function getCardsList() {
       cost: parseInt(inputs[4]),
       attack: parseInt(inputs[5]),
       defense: parseInt(inputs[6]),
-      breakthrough: inputs[7].includes("B"),
-      charge: inputs[7].includes("C"),
-      drain: inputs[7].includes("D"),
-      guard: inputs[7].includes("G"),
-      lethal: inputs[7].includes("L"),
-      ward: inputs[7].includes("W"),
+      breakthrough: inputs[7].includes('B'),
+      charge: inputs[7].includes('C'),
+      drain: inputs[7].includes('D'),
+      guard: inputs[7].includes('G'),
+      lethal: inputs[7].includes('L'),
+      ward: inputs[7].includes('W'),
       myHealthChange: parseInt(inputs[8]),
       opponentHealthChange: parseInt(inputs[9]),
       cardDraw: parseInt(inputs[10])
@@ -178,25 +175,25 @@ function draft(cards, turn) {
     const deck = card => card.deck();
 
     const sortedByBest = cards.sort((prev, next) => next.value - prev.value);
-    log(sortedByBest);
+    //log(sortedByBest);
     log(sortedByBest.map(card => card.value));
 
     let chosenCard = sortedByBest.find(card => deck(card)[card.cost] > 0 && deck(card)[card.cardType] > 0);
-    log(chosenCard);
+    //log(chosenCard);
 
     if (!chosenCard) {
       chosenCard = sortedByBest.find(card => deck(card)[card.cardType] > 0);
-      log("card not found, checking card type", chosenCard);
+      //log('card not found, checking card type', chosenCard);
     }
     if (!chosenCard) {
       chosenCard = sortedByBest.find(card => deck(card)[card.cost] > 0);
-      log("card not found, checking card cost", chosenCard);
+      //log('card not found, checking card cost', chosenCard);
     }
 
     const cardToPick = chosenCard || sortedByBest[0];
     deck(cardToPick)[cardToPick.cost]--;
     deck(cardToPick)[cardToPick.cardType]--;
-    log(cardToPick.value);
+    log(`${cardToPick.attack} ${cardToPick.defense} pour ${cardToPick.cost}`);
     log(deck(cardToPick));
     return cardToPick;
   };
@@ -228,7 +225,7 @@ function summonCreatures(myHand, myBoard) {
   }
 
   const sortedByCost = myHand
-    .filter(card => card.cardType === "creature" && card.cost <= me.playerMana)
+    .filter(card => card.cardType === 'creature' && card.cost <= me.playerMana)
     .sort((prev, next) => prev.cost - next.cost);
 
   const paths = [];
@@ -243,7 +240,7 @@ function summonCreatures(myHand, myBoard) {
     const currentCost = currentCombo.reduce((total, card) => total + card.cost, 0);
     return bestCombo.length + bestCost < currentCombo.length + currentCost ? currentCombo : bestCombo;
   });
-  log("Best Summoning combo", result);
+  log('Best Summoning combo', result);
   result.forEach(card => {
     if (card.charge) {
       card.location = 1;
@@ -257,13 +254,14 @@ function attackOpponent(myBoard, opponentBoard) {
   if (myBoard.length === 0) return [];
   let actions = [];
   opponentBoard.length && actions.push(...lethalsAttack(myBoard, opponentBoard));
-  const opGuards = opponentBoard.filter(card => card.guard).sortBy("attack");
-  log("opGuards", opGuards);
+  const opGuards = opponentBoard.filter(card => card.guard).sortBy('attack');
+  log('opGuards', opGuards);
   actions.push(...destroyWards(myBoard, opGuards));
   if (opGuards.length > 0) {
     actions.push(...attackGuards(myBoard, opGuards));
   }
-  actions.push(...attack(myBoard, opponentBoard));
+  cantKillPlayer(myBoard) && actions.push(...attack(myBoard, opponentBoard));
+  actions.push(...fullFace(myBoard));
   return actions;
 }
 
@@ -295,7 +293,7 @@ function attackGuards(myBoard, opGuards) {
     }
   }
 
-  function chooseBestCombo(myBoard, opGuards) {
+  function chooseBestCombo(combos, opGuards) {
     const chosenCombos = [];
     for (let i = 0; i < opGuards.length; i++) {
       let opGuardCombos = combos.filter(combo => !combo.opGuard.downed && !combo.combo.some(card => card.used));
@@ -344,75 +342,84 @@ function attackGuards(myBoard, opGuards) {
     }
   });
 
-  const chosenCombos = chooseBestCombo(myBoard, opGuards);
+  const chosenCombos = chooseBestCombo(combos, opGuards);
   actions.push(
-    ...chosenCombos.map(combo => combo.combo.map(card => `ATTACK ${card.id} ${combo.opGuard.id}`).join(";"))
+    ...chosenCombos.map(combo => combo.combo.map(card => `ATTACK ${card.id} ${combo.opGuard.id}`).join(';'))
   );
-  log("guardCombos", actions);
+  log('guardCombos', actions);
 
   return actions;
 }
 
+function cantKillPlayer(myBoard) {
+  const totalAttack = myBoard.filter(card => !card.used).reduce((total, card) => card.attack + total, 0);
+  return ennemy.playerHealth > totalAttack;
+}
+
 function attack(myBoard, opponentBoard) {
-  return fullFace(myBoard);
-  /*  function dfs(opGuard, graph, root, combo, totalAttack, combos) {
+  function dfs(op, graph, root, combo, totalAttack, combos) {
     const newGraph = graph.filter(card => card.id !== root.id);
     if (newGraph.length === 0) {
       //lorsqu'on atteint le bout du graph
       combos.push({
-        opGuard,
+        op,
         combo,
-        loss: combo.reduce((total, card) => total + (card.defense - opGuard.attack <= 0 ? 1 : 0), 0),
-        efficient: combo.reduce((total, card) => total - card.attack, opGuard.defense)
+        loss: combo.reduce((total, card) => total + (card.defense - op.attack <= 0 ? 1 : 0), 0),
+        efficient: combo.reduce((total, card) => total - card.attack, op.defense)
       });
     }
     for (let i = 0; i < newGraph.length; i++) {
       const child = newGraph[i];
       const comboAttack = totalAttack + child.attack;
-      if (totalAttack < opGuard.defense) {
-        dfs(opGuard, newGraph, child, [...combo, child], comboAttack, combos);
+      if (totalAttack < op.defense) {
+        dfs(op, newGraph, child, [...combo, child], comboAttack, combos);
       } else {
         combos.push({
-          opGuard,
+          op,
           combo,
-          loss: combo.reduce((total, card) => total + (card.defense - opGuard.attack <= 0 ? 1 : 0), 0),
-          efficient: combo.reduce((total, card) => total - card.attack, opGuard.defense)
+          loss: combo.reduce((total, card) => total + (card.defense - op.attack <= 0 || op.lethal ? 1 : 0), 0),
+          efficient: combo.reduce((total, card) => total - card.attack, op.defense)
         });
       }
     }
   }
 
-  function chooseBestCombo(myBoard, opGuards) {
+  function chooseBestCombo(combos, opponents) {
     const chosenCombos = [];
-    for (let i = 0; i < opGuards.length; i++) {
-      let opGuardCombos = combos.filter(combo => !combo.opGuard.downed && !combo.combo.some(card => card.used));
-
-      let bestCombos, sorted;
-      const freeTrades = opGuardCombos
+    for (let i = 0; i < opponents.length; i++) {
+      let opCombos = combos.filter(combo => !combo.op.downed && !combo.combo.some(card => card.used));
+      //freetrades
+      let bestCombos,
+        sorted = [];
+      const freeTrades = opCombos
         .filter(combo => combo.loss === 0 && combo.efficient <= 0)
         .sort((prev, next) => next.efficient - prev.efficient);
-      sorted = freeTrades;
+      sorted.push(...freeTrades);
+      log('freetrades', freeTrades);
 
-      if (freeTrades.length === 0) {
-        const killingCombos = opGuardCombos.filter(combo => combo.efficient <= 0);
-        const sortedByLoss = (killingCombos.length === 0 ? opGuardCombos : killingCombos).sort(
-          (prev, next) => prev.loss - next.loss
-        );
-        const sortedByEfficient = sortedByLoss
-          .filter(combo => combo.loss === sortedByLoss[0].loss)
-          .sort((prev, next) => next.efficient - prev.efficient);
-        sorted = sortedByEfficient;
-      }
+      //killing more dangerous cards
+      const killingCombos = opCombos.filter(combo => combo.efficient <= 0).sort((prev, next) => prev.loss - next.loss);
+      const efficientsTrades = killingCombos
+        .filter(
+          combo =>
+            combo.loss === killingCombos[0].loss &&
+            combo.loss < 2 &&
+            combo.op.defense - combo.efficient <= combo.op.attack
+        )
+        .sort((prev, next) => next.efficient - prev.efficient);
+      sorted.push(...efficientsTrades);
+      log('efficientrades', efficientsTrades);
 
+      //between same combos, choose strongest opponent
       bestCombos = sorted
-        .filter(combo => combo.efficient === sorted[0].efficient)
-        .sort((prev, next) => next.opGuard.attack - prev.opGuard.attack);
+        .filter(combo => combo.loss === sorted[0].loss && combo.efficient === sorted[0].efficient)
+        .sort((prev, next) => next.op.attack - prev.op.attack);
 
       bestCombos.forEach(combo => {
         if (!combo.combo.some(card => card.used)) {
           //eviter de push 2 fois le même combo
           chosenCombos.push(combo);
-          combo.opGuard.downed = true;
+          combo.op.downed = true;
           combo.combo.forEach(card => {
             card.used = true;
           });
@@ -421,23 +428,22 @@ function attack(myBoard, opponentBoard) {
     }
     return chosenCombos;
   }
-
+  const myUnusedBoard = myBoard.filter(card => !card.used);
+  const opponents = opponentBoard.filter(opponent => !opponent.guard);
   const actions = [],
     combos = [];
-  opGuards.forEach(opGuard => {
-    for (let i = 0; i < myBoard.length; i++) {
-      const root = myBoard[i];
-      dfs(opGuard, myBoard, root, [root], root.attack, combos);
+  opponents.forEach(opponent => {
+    for (let i = 0; i < myUnusedBoard.length; i++) {
+      const root = myUnusedBoard[i];
+      dfs(opponent, myUnusedBoard, root, [root], root.attack, combos);
     }
   });
 
-  const chosenCombos = chooseBestCombo(myBoard, opGuards);
-  actions.push(
-    ...chosenCombos.map(combo => combo.combo.map(card => `ATTACK ${card.id} ${combo.opGuard.id}`).join(";"))
-  );
-  log("attackCombos", actions);
+  const chosenCombos = chooseBestCombo(combos, opponents);
+  actions.push(...chosenCombos.map(combo => combo.combo.map(card => `ATTACK ${card.id} ${combo.op.id}`).join(';')));
+  log('attackCombos', actions);
 
-  return actions;*/
+  return actions;
 }
 
 function lethalsAttack(myBoard, opponentBoard) {
@@ -480,7 +486,7 @@ function fullFace(myBoard) {
 function log(...messages) {
   if (debug) {
     messages.forEach(message => {
-      if (typeof message === "object") {
+      if (typeof message === 'object') {
         message = JSON.stringify(message);
       }
       printErr(message);
