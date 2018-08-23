@@ -1,5 +1,5 @@
-console.log(" \n\n\n --- ##### DEBUT ##### --- \n\n\n ");
-const myHand = [
+console.log(' \n\n\n --- ##### DEBUT ##### --- \n\n\n ');
+const a = [
   {
     cost: 2,
     id: 0
@@ -30,11 +30,13 @@ const myHand = [
   }
 ];
 
-const myBoard = [
+const myHand = [
   {
     id: 0,
-    attack: 3,
-    defense: 2
+    defense: -2,
+    cost: 0,
+    cardDraw: 0,
+    cardType: 'red item'
   },
   {
     id: 1,
@@ -52,16 +54,22 @@ const myBoard = [
     defense: 8
   }
 ];
-const opGuards = [
+const opponentBoard = [
   {
     id: 31,
-    attack: 12,
-    defense: 12
+    attack: 7,
+    guard: false,
+    lethal: false,
+    ward: false,
+    defense: 2
   },
   {
     id: 32,
     attack: 9,
-    defense: 12
+    defense: 12,
+    guard: false,
+    lethal: false,
+    ward: false
   }
 ];
 
@@ -69,82 +77,73 @@ const test = {
   card: 2,
   leTest: this.card
 };
-
-function attackGuards(myBoard, opGuards) {
-  function dfs(opGuard, graph, root, combo, totalAttack, combos) {
-    const newGraph = graph.filter(card => card.id !== root.id);
-    if (newGraph.length === 0) {
-      //lorsqu'on atteint le bout du graph
-      combos.push({
-        opGuard,
-        combo,
-        loss: combo.reduce((total, card) => total + (card.defense - opGuard.attack <= 0 ? 1 : 0), 0),
-        efficient: combo.reduce((total, card) => total - card.attack, opGuard.defense)
-      });
-    }
-    for (let i = 0; i < newGraph.length; i++) {
-      const child = newGraph[i];
-      const comboAttack = totalAttack + child.attack;
-      if (totalAttack < opGuard.defense) {
-        dfs(opGuard, newGraph, child, [...combo, child], comboAttack, combos);
-      } else {
-        combos.push({
-          opGuard,
-          combo,
-          loss: combo.reduce((total, card) => total + (card.defense - opGuard.attack <= 0 ? 1 : 0), 0),
-          efficient: combo.reduce((total, card) => total - card.attack, opGuard.defense)
-        });
-      }
-    }
+const me = {
+  playerMana: 10
+};
+function getDangerosity(crea) {
+  // in case of pump spell
+  // if (crea.cardType === 'green item'){
+  //     const pump = {...crea};
+  //     pump.toughness += 1;
+  //     pump.type = 0;
+  //     pump.abilities.push('C');
+  //     return getDangerosity(pump);
+  // }
+  let danger = 0;
+  if (crea.lethal) {
+    danger += 8 + crea.attack / 2;
+    danger += 4 * crea.defense;
+    danger += 5 * crea.ward;
+    danger += 3 * crea.guard;
+  } else {
+    danger += Math.sqrt(crea.attack) * Math.sqrt(crea.defense) / 3;
+    danger += 1.5 * crea.attack * (1.5 + crea.ward);
+    danger += 1.5 * crea.defense * (1.5 + crea.guard);
   }
-  const combos = [];
-  opGuards.forEach(opGuard => {
-    for (let i = 0; i < myBoard.length; i++) {
-      const root = myBoard[i];
-      dfs(opGuard, myBoard, root, [root], root.attack, combos);
-    }
-  });
-
-  const chosenCombos = [];
-  for (let i = 0; i < opGuards.length; i++) {
-    let opGuardCombos = combos.filter(combo => !combo.opGuard.downed && !combo.combo.some(card => card.used));
-
-    let bestCombos, sorted;
-    const freeTrades = opGuardCombos
-      .filter(combo => combo.loss === 0 && combo.efficient <= 0)
-      .sort((prev, next) => next.efficient - prev.efficient);
-    sorted = freeTrades;
-
-    if (freeTrades.length === 0) {
-      const sortedByLoss = opGuardCombos
-        .filter(combo => combo.efficient <= 0)
-        .sort((prev, next) => prev.loss - next.loss);
-      const sortedByEfficient = sortedByLoss
-        .filter(combo => combo.loss === sortedByLoss[0].loss)
-        .sort((prev, next) => next.efficient - prev.efficient);
-      sorted = sortedByEfficient;
-    }
-
-    bestCombos = sorted
-      .filter(combo => combo.efficient === sorted[0].efficient)
-      .sort((prev, next) => next.opGuard.attack - prev.opGuard.attack);
-    console.log(JSON.stringify(bestCombos, null, 2));
-
-    bestCombos.forEach(combo => {
-      if (!combo.combo.some(card => card.used)) {
-        //eviter de push 2 fois le même combo
-        chosenCombos.push(combo);
-        combo.opGuard.downed = true;
-        combo.combo.forEach(card => {
-          card.used = true;
-        });
-      }
-    });
-  }
-  return chosenCombos
-    .map(combo => combo.combo.map(card => `ATTACK ${card.id} ${combo.opGuard.id}`).join(";"))
-    .join(";");
+  // if (crea.location === 0 && crea.charge){
+  //     danger += 2 * (1 + 3 * crea.lethal);
+  // }
+  console.log({ crea });
+  return danger;
 }
 
-const actions = attackGuards(myBoard, opGuards);
-console.log(actions);
+function getRedValue(removal) {
+  if (removal.defense === -99) {
+    return 28;
+  }
+  return 6 * ((removal.cost - removal.defense) / 2 - removal.cardDraw);
+}
+
+function playRemovals(myHand, opponentBoard) {
+  const chosenActions = [];
+  const removals = myHand.filter(card => card.cardType === 'red item' || card.cardType === 'blue item');
+  if (removals.length === 0) return [];
+  opponentBoard.sort((prev, next) => getDangerosity(next) - getDangerosity(prev)).forEach(opponent => {
+    const danger = getDangerosity(opponent);
+    const chosen = removals.sort((prev, next) => getRedValue(next) - getRedValue(prev)).find(removal => {
+      const redValue = getRedValue(removal);
+      console.log('danger:' + danger + 'redValue:' + redValue);
+      if (redValue < danger) {
+        console.log('target legit', opponent.id);
+        if (removal.defense + opponent.defense <= 0 && (!opponent.ward || removal.ward)) {
+          console.log('can kill it');
+          return true;
+        } else {
+          console.log('cant kill it');
+          console.log(`${opponent.defense} + ${removal.defense} = ${removal.defense + opponent.defense}`);
+        }
+      }
+      return false;
+    });
+    console.log('toKill (red)', chosen);
+    if (chosen && me.playerMana >= chosen.cost) {
+      chosenActions.push(`USE ${chosen.id} ${opponent.id}`);
+      me.playerMana -= chosen.cost;
+      opponent.downed = true;
+    }
+  });
+  return chosenActions;
+}
+
+const actions = playRemovals(myHand, opponentBoard);
+console.log(JSON.stringify(actions, null, 2));
