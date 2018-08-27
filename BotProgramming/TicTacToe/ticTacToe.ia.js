@@ -1,4 +1,10 @@
-// winning combinations
+function flushReadLine() {
+    const validActionCount = parseInt(readline());
+    for (let i = 0; i < validActionCount; i++) {
+        let inputs = readline().split(" ");
+        let row = parseInt(inputs[0]);
+    }
+}
 function winning(board, player) {
     if (
         (board[0] == player && board[1] == player && board[2] == player) ||
@@ -86,21 +92,29 @@ function fullLog(oppX, oppY, index, board, bestSpot) {
 
 const opSymbol = "O";
 const meSymbol = "X";
+const miniBoards = [
+    [0, 1, 2, 3, 4, 5, 6, 7, 8], // 1
+    [0, 1, 2, 3, 4, 5, 6, 7, 8], // 2
+    [0, 1, 2, 3, 4, 5, 6, 7, 8], // 3
+    [0, 1, 2, 3, 4, 5, 6, 7, 8], // 4
+    [0, 1, 2, 3, 4, 5, 6, 7, 8], // 5
+    [0, 1, 2, 3, 4, 5, 6, 7, 8], // 6
+    [0, 1, 2, 3, 4, 5, 6, 7, 8], // 7
+    [0, 1, 2, 3, 4, 5, 6, 7, 8], // 8
+    [0, 1, 2, 3, 4, 5, 6, 7, 8] // 9
+];
 const board = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 
 while (true) {
     let inputs = readline().split(" ");
     const oppX = parseInt(inputs[0]); // row
     const oppY = parseInt(inputs[1]); // col
-    const validActionCount = parseInt(readline());
     const index = oppX * 3 + oppY;
+    flushReadLine();
 
     if (index >= 0) board[index] = "O";
     const bestSpot = minimax(board, meSymbol);
-    for (let i = 0; i < validActionCount; i++) {
-        let inputs = readline().split(" ");
-        let row = parseInt(inputs[0]);
-    }
+
     board[bestSpot.index] = "X";
     fullLog(oppX, oppY, index, board, bestSpot);
     print("8 8");
