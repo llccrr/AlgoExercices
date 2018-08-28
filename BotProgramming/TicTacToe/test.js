@@ -41,7 +41,7 @@ var aiPlayer = "X";
 
 // this is the board flattened and filled with some values to easier asses the Artificial Inteligence.
 // var origBoard = ["O", 1, "X", "X", 4, "X", 6, "O", "O"];
-var origBoard = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+var origBoard = ["O", 1, 2, 3, 4, 5, 6, 7, 8];
 
 //keeps count of function calls
 var fc = 0;

@@ -2,7 +2,8 @@
 #include <string>
 #include <vector>
 #include <algorithm>
-
+#include <time.h>
+#include <chrono>
 using namespace std;
 
 #define OP_SYMBOL 'O'
@@ -14,6 +15,13 @@ typedef struct move {
     int score;
 } t_move;
 
+
+template<typename T>
+void printVector(const T& vec) {
+    std::copy(vec.cbegin(), vec.cend(), std::ostream_iterator<typename T::value_type>(std::cout, ", "));
+}
+ 
+   
 // test -> OK
 bool winning(vector<char> board, char player) {
     if (
@@ -45,48 +53,46 @@ int winChecking(vector<char> board, vector<int> availableIndexes) {
 }
 
 t_move minimax(vector<char> board, vector<int> availableIndexes, bool isMe) {
-    cerr << "Starting minimax for me..." << isMe << endl;
+    // cerr << " --- " << endl;
+    // cerr << "Starting minimax for me..." << (isMe ? "true" : "false") << endl;   
+    
     t_move result;
+    vector<t_move> moves;
+    t_move move;
+
     int isWon = winChecking(board, availableIndexes);
 
-    // print Board
-    for (vector<char>::const_iterator i = board.begin(); i != board.end(); ++i) {
-        std::cout << *i << ' ';
-    }
-
-    if (isWon != -1) {
+    // if there is a winner, return a move with the score, else continue
+     if (isWon != -1) {
+         // cerr <<"isWon: " << isWon;
         result.score = isWon;
         return result;
     }
-    cerr << "isWon: " << isWon << endl;
 
-    vector<t_move> moves;
-    t_move move;
-    cout << "availableIndexes: ";
-    for (vector<int>::const_iterator i = availableIndexes.begin(); i != availableIndexes.end(); ++i) {
-            std::cout  << *i << ' ';
-    }
-    cout << endl;
 
     for (int i = 0; i < availableIndexes.size(); ++i) {
-        cerr << "ici: " << i << endl;
+        //cerr << "for -> i: " << i << endl;
         // updating the board with the next move
         vector<char> newBoard = board;
         vector<int> newAvailableIndexes = availableIndexes;
-
-        newBoard[availableIndexes[i]] = (isMe ? ME_SYMBOL : OP_SYMBOL);
-        
-        move.index = availableIndexes[i];
-        newAvailableIndexes[i] = -1;
+        //cout << "index avai" << availableIndexes[i] << endl;
+        board[newAvailableIndexes[i]] = (isMe ? ME_SYMBOL : OP_SYMBOL);
+        //cout << "new Board: ";
+        //printVector(newBoard);
+        //cout << endl;
+        move.index = newAvailableIndexes[i];
+        //newAvailableIndexes[i] = -1;
+        // cerr << "index: " << move.index << endl;
+        newAvailableIndexes.erase(newAvailableIndexes.begin() + i);
         result = minimax(newBoard, newAvailableIndexes, !isMe);
-        cerr << "result: " << result.score << endl;
         move.score = result.score;
+        // cerr << "score: " << move.score << endl;
         
         moves.push_back(move);
-        cerr<< "là: " <<endl;
+        //cerr<< "là: " <<endl;
     }
 
-    cerr << "move index" << move.index << endl;
+    //cerr << "move index" << move.index << endl;
 
     int bestMove;
     if (isMe) {
@@ -112,17 +118,29 @@ t_move minimax(vector<char> board, vector<int> availableIndexes, bool isMe) {
 
 }
 
-
+// O - -
+// O X X
+// - - -
 int main()
 {
-   char boardList[9] = {'?', '?', '?', '?', '?', '?', '?', '?', '?'};
+    auto start = chrono::steady_clock::now();
+    /* Do your stuff here */
+    char boardList[9] = {'O', '?', '?', '?', '?', '?', '?', '?', '?'};
+    //char boardList[9] = {'O', '?', '?', 'O', 'X', 'X', '?', '?', '?'};
     vector<char> board(boardList, boardList + sizeof(boardList) / sizeof(char));
 
-    int randomList[9] = { 0, 1, 2 ,3, 4, 5, 6, 7, 8 };
+    int randomList[9] = { 1, 2, 3, 4, 5, 6, 7, 8 };
+    // int randomList[9] = { 1, 2, 6, 7, 8 };
     vector<int> availableIndexes(randomList, randomList + sizeof(randomList) / sizeof(int));
 
 
     t_move chosenMove = minimax(board, availableIndexes, true);
+    cout << "chosenMove: " << chosenMove.index << endl;
+    auto end = chrono::steady_clock::now();
+    auto diff = end - start;
+    cout << chrono::duration <double, milli> (diff).count() << " ms" << endl;
+    return 0;
+
     // game loop
     // while (1) {
     //     int opponentRow;
