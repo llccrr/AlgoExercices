@@ -7,7 +7,6 @@
 using namespace std;
 
 #define OP_SYMBOL 'O'
-
 #define ME_SYMBOL 'X'
 
 typedef struct move {
@@ -73,18 +72,18 @@ t_move minimax(vector<char> board, vector<int> availableIndexes, bool isMe) {
     for (int i = 0; i < availableIndexes.size(); ++i) {
         //cerr << "for -> i: " << i << endl;
         // updating the board with the next move
-        vector<char> newBoard = board;
-        vector<int> newAvailableIndexes = availableIndexes;
+        // vector<char> newBoard = board;
+        // vector<int> newAvailableIndexes = availableIndexes;
         //cout << "index avai" << availableIndexes[i] << endl;
-        board[newAvailableIndexes[i]] = (isMe ? ME_SYMBOL : OP_SYMBOL);
+        board[availableIndexes[i]] = (isMe ? ME_SYMBOL : OP_SYMBOL);
         //cout << "new Board: ";
         //printVector(newBoard);
         //cout << endl;
-        move.index = newAvailableIndexes[i];
+        move.index = availableIndexes[i];
         //newAvailableIndexes[i] = -1;
         // cerr << "index: " << move.index << endl;
-        newAvailableIndexes.erase(newAvailableIndexes.begin() + i);
-        result = minimax(newBoard, newAvailableIndexes, !isMe);
+        availableIndexes.erase(availableIndexes.begin() + i);
+        result = minimax(board, availableIndexes, !isMe);
         move.score = result.score;
         // cerr << "score: " << move.score << endl;
         
@@ -118,6 +117,10 @@ t_move minimax(vector<char> board, vector<int> availableIndexes, bool isMe) {
 
 }
 
+vector<int> mutateVector(vector<int> vec) {
+    vec.push_back(2);
+    return vec;
+}
 // O - -
 // O X X
 // - - -
@@ -139,6 +142,7 @@ int main()
     auto end = chrono::steady_clock::now();
     auto diff = end - start;
     cout << chrono::duration <double, milli> (diff).count() << " ms" << endl;
+
     return 0;
 
     // game loop

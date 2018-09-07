@@ -44,6 +44,7 @@ function minimax(newBoard, playerSymbol) {
         const move = {};
         move.index = newBoard[availSpots[i]];
         newBoard[availSpots[i]] = playerSymbol;
+
         if (playerSymbol == meSymbol) {
             const result = minimax(newBoard, opSymbol);
             move.score = result.score;
@@ -51,6 +52,7 @@ function minimax(newBoard, playerSymbol) {
             const result = minimax(newBoard, meSymbol);
             move.score = result.score;
         }
+        
         newBoard[availSpots[i]] = move.index;
         moves.push(move);
     }
